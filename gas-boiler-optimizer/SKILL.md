@@ -1,244 +1,248 @@
 ---
 name: gas-boiler-optimizer
-description: Optimize old atmospheric gas boiler (Junkers Euroline E6 or similar) for minimum gas consumption. Covers built-in hysteresis behavior, room thermostat priority, night setback, and supply temperature tuning for cold climates.
+description: Оптимизация старого атмосферного газового котла (Junkers Euroline E6 и аналоги) для минимального расхода газа. Охватывает встроенный гистерезис, приоритет комнатного термостата, ночное снижение и настройку температуры подачи для холодного климата.
 ---
 
-# Gas Boiler Optimizer — Junkers Euroline E6
+# Оптимизатор газового котла — Junkers Euroline E6
 
-Expert advisor for reducing gas consumption on old atmospheric gas boilers with E6-type controllers and room temperature sensors, while maintaining comfort. Validated for cold climates (Latvia, Baltic, Nordic).
+Экспертный советник по снижению расхода газа на старых атмосферных газовых котлах с контроллерами типа E6 и комнатными датчиками температуры. Проверено для холодного климата (Латвия, Балтия, Скандинавия).
 
-## When to Use
+## Когда использовать
 
-- High gas bill, want to find where gas is wasted
-- Boiler cycles too often or too rarely
-- Deciding correct supply water temperature setpoint
-- Evaluating night setback vs. full overnight shutdown
-- Understanding what the room thermostat actually controls vs. what the boiler aquastat controls
+- Высокий счёт за газ, нужно найти где теряется газ
+- Котёл включается слишком часто или слишком редко
+- Выбор правильной уставки температуры теплоносителя
+- Сравнение ночного снижения и полного отключения на ночь
+- Понять что именно контролирует комнатный термостат, а что — аквастат котла
 
-## When NOT to Use
+## Когда НЕ использовать
 
-- Condensing boilers (return temperature constraints are different)
-- Underfloor heating (low-temperature logic needed)
-- Emergency faults, gas leaks, or error codes — call a technician
+- Конденсационные котлы (другие ограничения по температуре обратки)
+- Тёплый пол (нужна логика низкотемпературной системы)
+- Аварийные неисправности, утечка газа, коды ошибок — вызывать техника
 
 ---
 
-## Critical: How Junkers E6 Hysteresis Works
+## Критически важно: как работает гистерезис Junkers E6
 
-**This is the most important thing to understand before changing any settings.**
+**Это нужно понять до изменения любых настроек.**
 
-The E6 controller has a **fixed built-in asymmetric hysteresis** — it cannot be changed by the user:
+Контроллер E6 имеет **фиксированный асимметричный гистерезис** — пользователь его изменить не может:
 
-| Setpoint | Burner OFF at | Burner ON at | Total swing |
+| Уставка | Горелка ВЫКЛ при | Горелка ВКЛ при | Диапазон |
 |---|---|---|---|
 | 75°C | 85°C (+10°C) | 55°C (-20°C) | 30°C |
 | 65°C | 75°C (+10°C) | 45°C (-20°C) | 30°C |
 | 55°C | 65°C (+10°C) | 35°C (-20°C) | 30°C |
 
-**What this means in practice:**
-- The boiler always overshoots setpoint by 10°C before stopping
-- The boiler waits until water cools 20°C below setpoint before restarting
-- This wide swing is intentional — it prevents short cycling at the boiler level
-- You **cannot** narrow or widen this hysteresis — it is hardwired in E6
+**Что это означает на практике:**
+- Котёл всегда перегревает теплоноситель на 10°C выше уставки перед остановкой
+- Котёл ждёт пока вода остынет на 20°C ниже уставки перед следующим запуском
+- Широкий диапазон намеренный — он исключает частое тактование на уровне котла
+- Изменить этот гистерезис **нельзя** — он зашит в E6 аппаратно
 
-**Consequence:** If you set the boiler to 75°C, it actually delivers water between 55°C and 85°C. Plan your comfort around the average (~70°C), not the setpoint.
+**Следствие:** при уставке 75°C котёл реально подаёт воду от 55°C до 85°C. Ориентируйтесь на среднее (~70°C), а не на уставку.
 
 ---
 
-## Control Hierarchy: What Controls What
+## Иерархия управления: кто чем управляет
 
 ```
-Room thermostat (TA terminals)
-    ↓ calls for heat ON/OFF
-Boiler aquastat (E6 controller)
-    ↓ maintains water temp within its fixed hysteresis
-Burner
+Комнатный термостат (клеммы TA)
+    ↓ даёт команду — нужно тепло или нет
+Аквастат котла (контроллер E6)
+    ↓ поддерживает температуру воды в своём фиксированном диапазоне
+Горелка
 ```
 
-**Room thermostat = master switch.** When room reaches target → thermostat opens circuit → boiler stops firing completely regardless of water temperature.
+**Комнатный термостат = главный выключатель.** Комната прогрелась → термостат разрывает цепь → котёл полностью прекращает горение независимо от температуры воды.
 
-**Boiler aquastat = temperature keeper.** Only active when room thermostat is calling for heat.
+**Аквастат котла = хранитель температуры.** Активен только когда комнатный термостат требует тепла.
 
-**Common mistake:** Bypassing room thermostat (TA terminals jumpered) and controlling everything via water setpoint — this removes room-level feedback and wastes gas because boiler fires based on water temperature, not actual room need.
-
----
-
-## Step 1: Verify Room Thermostat Is Wired Correctly
-
-Check terminals marked **TA** on the E6 controller board:
-- **Correct:** Room thermostat connected, jumper removed → thermostat controls when boiler fires
-- **Wrong:** Jumper still in place, thermostat ignored → boiler fires by water temp only
-
-If thermostat is correctly connected: **estimated gas saving 15–20%** vs. jumpered mode (confirmed by multiple sources including Russian heating forums and Junkers documentation).
+**Типичная ошибка:** закоротить клеммы TA (термостат не подключён) и управлять всем через уставку воды — это убирает обратную связь по комнате и котёл работает вхолостую по температуре воды, а не по реальной потребности в тепле.
 
 ---
 
-## Step 2: Set the Right Water Temperature Setpoint
+## Шаг 1: Проверить правильность подключения комнатного термостата
 
-With E6's fixed hysteresis, the setpoint determines the average operating range. Choose based on outdoor temperature:
+Проверить клеммы **TA** на плате контроллера E6:
+- **Правильно:** комнатный термостат подключён, перемычка снята → термостат управляет включением горелки
+- **Неправильно:** перемычка стоит, термостат игнорируется → котёл работает только по аквастату
 
-**For old uninsulated / Soviet-era panel building:**
+Если термостат подключён правильно: **экономия 15–20%** по сравнению с режимом с перемычкой (подтверждено форумами и документацией Junkers).
 
-| Outdoor temp | Recommended setpoint | Actual water range |
+---
+
+## Шаг 2: Выбрать правильную уставку температуры
+
+При фиксированном гистерезисе E6 уставка определяет средний рабочий диапазон. Выбирать по уличной температуре:
+
+**Для старых неутеплённых зданий / панельных домов:**
+
+| Уличная температура | Рекомендуемая уставка | Реальный диапазон воды |
 |---|---|---|
-| -15°C and below | 75–80°C | 55–90°C |
-| -5°C to -15°C | 70°C | 50–80°C |
-| 0°C to -5°C | 65°C | 45–75°C |
+| -15°C и ниже | 75–80°C | 55–90°C |
+| -5°C до -15°C | 70°C | 50–80°C |
+| 0°C до -5°C | 65°C | 45–75°C |
 | +5°C | 55–60°C | 35–70°C |
 | +10°C | 50°C | 30–60°C |
-| above +14°C | turn off | — |
+| выше +14°C | выключить | — |
 
-**For renovated / insulated building:**
-Subtract 10–15°C from each setpoint above.
+**Для отремонтированных / утеплённых зданий:**
+Снизить каждое значение уставки на 10–15°C.
 
-**Rule:** Every 10°C reduction in average supply temperature → ~3–5% gas saving from reduced standing losses and pipe radiation. Lower setpoint also means longer burn cycles (good).
+**Правило:** снижение средней температуры подачи на 10°C → экономия ~3–5% на стоячих потерях и излучении труб.
 
 ---
 
-## Step 3: Night Setback Strategy for Latvia
+## Шаг 3: Стратегия ночного снижения для Латвии
 
-Latvia design temperature: -18°C to -20°C. Heating season: October–April.
+Расчётная температура Латвии: -18°C / -20°C. Отопительный сезон: октябрь–апрель.
 
-**Do NOT fully shut down overnight when outdoor temp is below -5°C.**
+**При уличной температуре ниже -5°C — не отключать котёл полностью на ночь.**
 
-Reason: Old buildings with high heat loss require 3–5 hours to reheat from cold. The reheat burst consumes more gas than maintaining a lower temperature overnight.
+Причина: старые здания с высокими теплопотерями требуют 3–5 часов для разогрева с нуля. Затраты газа на разогрев превышают экономию от ночного отключения.
 
-| Outdoor temp | Recommended night strategy |
+| Уличная температура | Рекомендуемая ночная стратегия |
 |---|---|
-| Below -10°C | Keep room thermostat at 17–18°C (setback only 3–4°C) |
-| -5°C to -10°C | Setback to 16–17°C |
-| 0°C to -5°C | Setback to 15–16°C, or full shutdown acceptable |
-| Above 0°C | Full overnight shutdown acceptable |
-| Weekend / 2+ days away | Lower to 14–15°C frost protection, never fully off in winter |
+| Ниже -10°C | Держать термостат на 17–18°C (снижение только на 3–4°C) |
+| -5°C до -10°C | Снизить до 16–17°C |
+| 0°C до -5°C | Снизить до 15–16°C, полное отключение допустимо |
+| Выше 0°C | Полное ночное отключение допустимо |
+| Выходные / 2+ дня отсутствия | Снизить до 14–15°C (защита от замерзания), зимой не выключать полностью |
 
-**How to implement with E6 + room thermostat:**
-- Use a programmable thermostat (e.g. Auraton, IMIT, Salus) connected to TA terminals
-- Set day program: 21°C, night program: 17°C
-- The boiler aquastat and setpoint do not change — only the room thermostat schedule changes
+**Как реализовать с E6 + комнатным термостатом:**
+- Использовать программируемый термостат (Auraton, IMIT, Salus) подключённый к клеммам TA
+- Дневная программа: 21°C, ночная программа: 17°C
+- Уставка аквастата и котла не меняется — меняется только расписание комнатного термостата
 
-**Expected saving from night setback:** 8–12% of seasonal gas consumption.
+**Ожидаемая экономия от ночного снижения:** 8–12% сезонного потребления газа.
 
 ---
 
-## Step 4: Diagnose Cycling Problems
+## Шаг 4: Диагностика проблем с цикличностью
 
-With E6's wide 30°C hysteresis, the boiler itself rarely short-cycles. If you still see frequent cycling, the cause is almost always the **room thermostat**, not the boiler.
+С широким гистерезисом E6 в 30°C сам котёл практически не тактует. Если циклы всё равно короткие — причина почти всегда в **комнатном термостате**, а не в котле.
 
-**Diagnosing room thermostat cycling:**
+**Диагностика по термостату:**
 
-| Symptom | Cause | Fix |
+| Симптом | Причина | Решение |
 |---|---|---|
-| Boiler fires for 2–3 min then stops | Room thermostat too close to heat source (boiler, radiator, sunny window) | Relocate thermostat to inner wall, away from heat sources |
-| Room temp swings ±3–4°C | Thermostat hysteresis too narrow or bimetallic type | Replace with electronic thermostat (hysteresis 0.3–0.5°C) |
-| Boiler runs but room stays cold | Thermostat correctly signals but boiler setpoint too low for heat loss | Raise setpoint 5°C, wait 30 min, check radiator temperature |
-| Boiler never stops | Room thermostat stuck closed or jumper left in | Check TA terminals |
+| Горелка включается на 2–3 мин и гаснет | Термостат стоит рядом с источником тепла (котёл, радиатор, солнечное окно) | Перенести термостат на внутреннюю стену подальше от источников тепла |
+| Температура в комнате колеблется ±3–4°C | Слишком узкий гистерезис термостата или биметаллический тип | Заменить на электронный термостат (гистерезис 0,3–0,5°C) |
+| Котёл работает, а в комнате холодно | Термостат правильно подаёт сигнал, но уставка котла слишком низкая | Поднять уставку на 5°C, подождать 30 мин, проверить температуру радиатора |
+| Котёл не останавливается | Термостат залипает или стоит перемычка | Проверить клеммы TA |
 
-**Good cycling rhythm with E6 + room thermostat:**
-- Burner on: 15–30 minutes (boiler fills thermal mass of radiators)
-- Burner off: 20–60 minutes (room coasts on stored heat)
-- Daily cycles: 8–15 in cold weather, 4–8 in mild weather
-
----
-
-## Step 5: Dry Cycling — Hidden Gas Waste
-
-**Dry cycling** = boiler fires to maintain its own water temperature when no room heat is needed (room thermostat satisfied, but boiler cools and refires just to keep water hot).
-
-**Impact:** Up to 10–25% of gas consumption wasted on dry cycling (source: Sabien Technology, DOE studies).
-
-**With E6 + room thermostat correctly wired:** Dry cycling is minimized because room thermostat cuts power to burner when room is satisfied.
-
-**If room thermostat is bypassed (jumpered TA):** Boiler dry-cycles constantly — fires to 85°C, cools to 55°C, fires again, all day, even when rooms are warm. This is the single biggest source of gas waste on this type of boiler.
+**Нормальный ритм цикла с E6 + комнатным термостатом:**
+- Горелка включена: 15–30 минут
+- Горелка выключена: 20–60 минут
+- Циклов в сутки: 8–15 в холода, 4–8 в межсезонье
 
 ---
 
-## Step 6: Optimal Setpoint — Standing Losses vs. Cycling Losses
+## Шаг 5: Холостые циклы — скрытые потери газа
 
-This is the most common question: should you heat water to 80°C so the boiler fires rarely, or keep it at 60°C accepting more frequent cycles?
+**Холостой цикл (dry cycling)** = котёл разжигается чтобы поддержать температуру воды когда комнате тепло не нужно (термостат удовлетворён, но вода остывает и котёл снова разжигается).
 
-**Real measured experiment** (Viessmann 24kW, wooden house 38m², outdoor -8°C):
+**Масштаб потерь:** до 10–25% расхода газа уходит на холостые циклы (источник: Sabien Technology, исследования DOE).
 
-| Setpoint | Gas cost | Pump electricity | Total cost |
+**При правильно подключённом термостате к клеммам TA:** холостые циклы минимальны — термостат отключает горелку когда комната прогрета.
+
+**Если клеммы TA с перемычкой:** котёл гоняет воду вхолостую круглосуточно — разогревает до 85°C, остывает до 55°C, снова разогревает — даже когда в комнатах тепло. Это главный источник перерасхода газа на таких котлах.
+
+---
+
+## Шаг 6: Оптимальная уставка — стоячие потери против потерь от запусков
+
+Главный вопрос: лучше греть воду до 80°C чтобы котёл включался реже, или держать 60°C допуская более частые циклы?
+
+**Реальный эксперимент с измерениями** (Viessmann 24кВт, деревянный дом 38м², улица -8°C):
+
+| Уставка | Расход газа | Расход эл-ва (насос) | Итого |
 |---|---|---|---|
-| 40°C | high | very high (pump never stops) | most expensive |
-| 50°C | medium | high | expensive |
-| **60°C** | **medium** | **low** | **optimal** |
-| 70°C | slightly higher | minimal | slightly worse than 60°C |
+| 40°C | высокий | очень высокий (насос не выкл.) | самый дорогой |
+| 50°C | средний | высокий | дорогой |
+| **60°C** | **средний** | **низкий** | **оптимально** |
+| 70°C | чуть выше | минимальный | чуть хуже 60°C |
 
-**Why 40°C is worse despite low setpoint:** pump runs almost continuously, adding 3.5× electricity cost. Water never gets hot enough, radiators underperform, thermostat never satisfies.
+**Почему 40°C хуже несмотря на низкую уставку:** насос работает почти непрерывно (+3,5× расход электричества). Вода не успевает прогреться до нужной температуры, радиаторы не справляются, термостат не насыщается.
 
-**Why 80°C is worse despite fewer cycles:** standing losses from a hot boiler in a cold basement are proportional to temperature difference. At 80°C in a 15°C basement (65°C delta) vs. 60°C (45°C delta) — losses are ~44% higher during every idle period.
+**Почему 80°C хуже несмотря на редкие запуски:** стоячие потери горячего котла в холодном подвале пропорциональны разнице температур. При 80°C в подвале 15°C (дельта 65°C) против 60°C (дельта 45°C) — потери в паузе на ~44% выше.
 
-**For Junkers E6 specifically:** setpoint 65°C gives actual water range 45–75°C (average ~60°C). This is the optimum for Latvia winter conditions.
+**Для Junkers E6 конкретно:** уставка 65°C даёт реальный диапазон воды 45–75°C (среднее ~60°C). Это оптимум для зимних условий Латвии.
 
-**Hard limits for atmospheric boiler:**
-- **Minimum 55°C setpoint** — below this, return water can drop under 45°C causing condensation in flue and corrosion of heat exchanger
-- **Maximum 80°C** — above this, standing losses grow rapidly, polypropylene pipes degrade faster
-
----
-
-## Step 7: Flue Draft Loss During Standby (Open Chimney)
-
-Atmospheric boilers like Junkers E6 have an **open flue** — no automatic damper. When the burner is off, warm air from the boiler room rises through the chimney by natural convection and escapes outside.
-
-**Measured impact:** DOE estimates a **vent damper saves 5–10% of annual gas consumption** on atmospheric boilers. This is the loss you have without one.
-
-**How significant is it?**
-- Active loss (gases during combustion): 14–19% of gas energy goes up the flue — unavoidable
-- Standby loss (convection when burner off): smaller but continuous — depends on chimney height, diameter, and temperature difference
-
-**What you can do without a damper:**
-- Keep boiler room door closed — reduces convection driving force
-- Ensure chimney is not oversized for the boiler — excess diameter increases draft loss
-- Lower setpoint reduces temperature of boiler body → less convection in standby
-
-**Hardware fix:** Install a flue damper (electromechanical, closes when burner shuts off). Payback: 1–2 heating seasons. This is a separate upgrade from the boiler itself.
+**Жёсткие ограничения для атмосферного котла:**
+- **Минимум 55°C уставки** — ниже этого обратка может опускаться до 40°C, что вызывает конденсат в дымоходе и коррозию теплообменника
+- **Максимум 80°C** — выше этого стоячие потери резко растут, быстрее изнашиваются полипропиленовые трубы
 
 ---
 
-## Practical Optimization Checklist
+## Шаг 7: Потери через дымоход при простое (открытый дымоход)
 
-Before adjusting anything — measure for 3 days:
-- [ ] Note current gas meter reading each morning
-- [ ] Count how many times burner fires per hour (listen for click + flame sound)
-- [ ] Check if room thermostat TA terminals have jumper or thermostat connected
+Атмосферные котлы типа Junkers E6 имеют **открытый дымоход** — без автоматической заслонки. Когда горелка выключена, тёплый воздух котельной поднимается через дымоход и уходит на улицу естественной тягой.
 
-Then apply in order (one change at a time, 3 days between):
+**Измеренные потери:** DOE оценивает экономию от установки заслонки в **5–10% годового расхода газа** на атмосферных котлах. Именно столько теряется без неё.
 
-1. **Connect room thermostat to TA** if not done — biggest single gain (15–20%)
-2. **Lower boiler setpoint** to 65°C for typical Latvia winter — optimal balance (3–5%)
-3. **Set night setback** on programmable thermostat (8–12% additional)
-4. **Relocate thermostat** if it's near heat source (stops phantom cycling)
-5. **Balance radiators** — close lockshield valves on overheated rooms, open on cold rooms
-6. **Install flue damper** on chimney — blocks standby draft loss (5–10%)
+**Три типа потерь через дымоход:**
 
-**Realistic total saving potential for Junkers E6 with all steps:** 25–40% vs. unoptimized state.
+| Тип потерь | Когда | Доля потерь | Можно устранить? |
+|---|---|---|---|
+| Уходящие газы при горении | Горелка работает | 14–19% от газа | Нет — физика горения |
+| Конвекция через дымоход | Горелка выключена | 5–10% годовых | Да — заслонкой |
+| Стоячие потери корпуса | Всегда пока котёл горячий | ~5% | Частично — снизить уставку |
+
+**Что делать без заслонки:**
+- Держать дверь котельной закрытой — снижает движущую силу конвекции
+- Не завышать уставку — чем горячее котёл в паузе, тем сильнее тяга
+- Снижение уставки уменьшает температуру корпуса → меньше конвекция в паузе
+
+**Аппаратное решение:** установить электромеханическую заслонку на дымоход — перекрывает тягу после остывания горелки. Окупаемость: 1–2 отопительных сезона.
 
 ---
 
-## What Cannot Be Changed on E6
+## Практический чеклист оптимизации
 
-| Parameter | Changeable? | Notes |
+Перед любыми изменениями — замерить 3 дня:
+- [ ] Записывать показания газового счётчика каждое утро
+- [ ] Посчитать сколько раз горелка включается за час (слушать щелчок + звук пламени)
+- [ ] Проверить клеммы TA — перемычка или термостат?
+
+Затем применять по порядку (одно изменение за раз, между ними 3 дня):
+
+1. **Подключить комнатный термостат к клеммам TA** — самый большой эффект (15–20%)
+2. **Снизить уставку котла** до 65°C для типичной зимы Латвии (3–5%)
+3. **Настроить ночное снижение** на программируемом термостате (8–12%)
+4. **Перенести термостат** если стоит рядом с источником тепла (устраняет ложные циклы)
+5. **Сбалансировать радиаторы** — прикрыть локшильдовые клапаны в перегретых комнатах, открыть в холодных
+6. **Установить заслонку на дымоход** — блокирует потери тяги при простое (5–10%)
+
+**Реальный потенциал экономии для Junkers E6 при всех шагах:** 25–40% по сравнению с неоптимизированным состоянием.
+
+---
+
+## Что нельзя изменить в E6
+
+| Параметр | Изменяемый? | Примечание |
 |---|---|---|
-| Aquastat hysteresis (30°C swing) | No | Hardwired in E6 |
-| Burner modulation | No | E6 is on/off only |
-| Weather compensation | No | E6 has no outdoor sensor input |
-| DHW priority | Yes | Via front panel selector |
-| Supply temperature setpoint | Yes | Main rotary knob |
+| Гистерезис аквастата (диапазон 30°C) | Нет | Зашит в E6 аппаратно |
+| Модуляция горелки | Нет | E6 — только вкл/выкл |
+| Погодная компенсация | Нет | E6 не имеет входа для уличного датчика |
+| Приоритет ГВС | Да | Переключатель на передней панели |
+| Уставка температуры подачи | Да | Основная поворотная ручка |
 
-To get weather compensation or modulation on this boiler, you need an **external weather-compensating controller** wired to TA terminals — the E6 then becomes a slave that fires on demand. This is a hardware upgrade, not a settings change.
+Для получения погодной компенсации или модуляции — нужен **внешний контроллер с погодной компенсацией**, подключённый к клеммам TA. E6 становится ведомым и включается по команде. Это аппаратный апгрейд, а не изменение настроек.
 
 ---
 
-## Sources and Validation
+## Источники и валидация
 
-Key data points validated from:
-- Junkers Euroline ZW 18/23-1 KE/AE official manual (hysteresis values: +10°C/-20°C)
-- Sabien Technology boiler cycling research (10–25% dry cycling waste)
-- Mastergrad.ru heating forum (room thermostat saves ~20%, cycling diagnosis)
-- EEVBlog heating engineering forum (buffer tank, cycling optimization)
-- Energy Vanguard research (night setback effectiveness in cold climates)
-- DOE / NREL Minimizing Boiler Short Cycling Losses (efficiency drop from cycling)
-- tol.acritum.com real measured experiment (optimal setpoint 60°C confirmed)
-- Heating Help: The Wall forum (standby losses ~20,000 BTU/hr measured)
-- DOE Energy Saver (vent damper saves 5–10% annually on atmospheric boilers)
+Ключевые данные подтверждены из:
+- Официальная инструкция Junkers Euroline ZW 18/23-1 KE/AE (значения гистерезиса: +10°C/-20°C)
+- Sabien Technology (10–25% потерь на холостых циклах)
+- Форум Mastergrad.ru (комнатный термостат экономит ~20%, диагностика цикличности)
+- Форум EEVBlog (буферная ёмкость, оптимизация циклов)
+- Energy Vanguard (эффективность ночного снижения в холодном климате)
+- DOE / NREL — потери от тактования котла
+- tol.acritum.com — реальный эксперимент с измерениями (оптимум 60°C подтверждён)
+- Heating Help: The Wall форум (стоячие потери ~20,000 BTU/ч, измерено)
+- DOE Energy Saver (заслонка дымохода экономит 5–10% в год на атмосферных котлах)
