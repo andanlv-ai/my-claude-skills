@@ -39,8 +39,6 @@ my-skill/
 ---
 name: my-skill
 description: Что делает и когда использовать (до 250 символов)
-category: uncategorized
-risk: safe
 ---
 
 ## Когда использовать
